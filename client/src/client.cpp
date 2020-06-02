@@ -6,8 +6,6 @@
 
 #define MEMORY_SIZE 2U << 31
 
-static uint32_t memory_size = 1 << 21;
-
 using namespace std;
 
 struct Options {
@@ -15,6 +13,7 @@ struct Options {
   unsigned long block_size;
   unsigned device_id;
   string filename;
+  uint32_t memory_size;
 } g_options{};
 
 int main(int argc, char *argv[]) {
@@ -29,6 +28,8 @@ int main(int argc, char *argv[]) {
       "device_id", po::value<unsigned>()->default_value(0),
       "Device id (e.g., 0)")("filename", po::value<string>()->required(),
                              "Output file name in ssd")(
+      "memory_size", po::value<uint32_t>()->required(),
+      "Memory size to compress (MB)")(
       "block_size", po::value<unsigned long>()->default_value(BLOCK_SIZE_IN_KB),
       "Compress block size");
 
@@ -46,6 +47,7 @@ int main(int argc, char *argv[]) {
   g_options.compress_xclbin = vm["compress_xclbin"].as<string>();
   g_options.device_id = vm["device_id"].as<unsigned>();
   g_options.filename = vm["filename"].as<string>();
+  g_options.memory_size = vm["memory_size"].as<uint32_t>() * (1 << 20);
 
   vector<char *> inVec;
   vector<string> outVec;
@@ -53,10 +55,11 @@ int main(int argc, char *argv[]) {
 
   outVec.push_back(g_options.filename);
 
-  char *memory = static_cast<char *>(aligned_alloc(4096, memory_size));
-  memset(memory, 56, memory_size);
+  char *memory =
+      static_cast<char *>(aligned_alloc(4096, g_options.memory_size));
+  memset(memory, 56, g_options.memory_size);
   inVec.push_back(memory);
-  inSizeVec.push_back(memory_size);
+  inSizeVec.push_back(g_options.memory_size);
   std::cout << "\x1B[32m[OpenCL Setup]\033[0m OpenCL/Host/Device Buffer Setup "
                "Started ..."
             << std::endl;

@@ -23,14 +23,6 @@ COMMAND ${CMAKE_CXX_COMPILER} -t ${TARGET} --platform ${PLATFORM} -k xilLz4Packe
 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-#[[add_library(xf_compress OBJECT src/lz4_compress_mm.cpp)
-target_compile_options(xf_compress PUBLIC -t ${TARGET} --platform ${PLATFORM} -k xilLz4Compress )
-set_target_properties(xf_compress PROPERTIES SUFFIX ".xo")
-
-add_library(xf_packer OBJECT src/lz4_packer_mm.cpp)
-target_compile_options(xf_packer PUBLIC -t ${TARGET} --platform ${PLATFORM} -k xilLz4Packer)
-set_target_properties(xf_packer PROPERTIES SUFFIX ".xo")]]
-
 add_custom_target(compress ALL 
 COMMAND ${CMAKE_CXX_COMPILER} -t ${TARGET} --platform ${PLATFORM} --config ${CMAKE_CURRENT_SOURCE_DIR}/compress.ini -o compress.xclbin -I${CMAKE_CURRENT_SOURCE_DIR}/include/ -l xf_compress.xo xf_packer.xo
 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
