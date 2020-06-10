@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
       "memory_size", po::value<uint32_t>()->required(),
       "Memory size to compress (MB)")(
       "block_size", po::value<unsigned long>()->default_value(BLOCK_SIZE_IN_KB),
-      "Compress block size");
+      "Compress block size (KB)");
 
   po::variables_map vm;
   po::store(
