@@ -145,6 +145,7 @@ xfLz4::~xfLz4() {
 void xfLz4::decompress_in_line_multiple_files(const std::vector<std::string>& inFileVec,
                                               std::vector<int>& fd_p2p_vec,
                                               std::vector<char*>& outVec,
+                                              std::vector<uint32_t> blkSizeVec,
                                               std::vector<uint64_t>& orgSizeVec,
                                               std::vector<uint64_t>& inSizeVec,
                                               bool enable_p2p) {
@@ -166,12 +167,24 @@ void xfLz4::decompress_in_line_multiple_files(const std::vector<std::string>& in
     cl_int error;
 
     cl_mem buffer_input, buffer_chunk_info;
-    uint32_t fid = 0;
+    //uint32_t fid = 0;
     for (uint32_t fid = 0; fid < inFileVec.size(); fid++) {
         uint64_t debytes;
         uint64_t original_size = 0;
-        uint32_t block_size_in_bytes = BLOCK_SIZE_IN_KB * 1024;
-        uint32_t m_BlockSizeInKb = BLOCK_SIZE_IN_KB;
+        uint32_t m_BlockSizeInKb;
+
+        switch(blkSizeVec[fid]){
+            case BSIZE_STD_64KB: m_BlockSizeInKb = 64; break;
+            case BSIZE_STD_256KB: m_BlockSizeInKb = 256; break;
+            case BSIZE_STD_1024KB: m_BlockSizeInKb = 1024; break;
+            case BSIZE_STD_4096KB: m_BlockSizeInKb = 4096; break;
+            default:
+                std::cout << "The coded block size is not supported" << std::endl;
+                EXIT_FAILURE;
+        }
+
+        //uint32_t m_BlockSizeInKb = 256;
+        uint32_t block_size_in_bytes = m_BlockSizeInKb * 1024;
         original_size = orgSizeVec[fid];
         total_size += original_size;
 

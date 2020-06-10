@@ -22,6 +22,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+// Below are the codes as per LZ4 standard for
+// various maximum block sizes supported.
+#define BSIZE_STD_64KB 64
+#define BSIZE_STD_256KB 80
+#define BSIZE_STD_1024KB 96
+#define BSIZE_STD_4096KB 112
+
 // Maximum host buffer used to operate
 // per kernel invocation
 #define HOST_BUFFER_SIZE (2 * 1024 * 1024)
@@ -47,6 +54,7 @@ class xfLz4 {
     void decompress_in_line_multiple_files(const std::vector<std::string>& inFileList,
                                            std::vector<int>& fd_p2p_vec,
                                            std::vector<char*>& outVec,
+                                           std::vector<uint32_t> blkSizeVec,
                                            std::vector<uint64_t>& orgSizeVec,
                                            std::vector<uint64_t>& inSizeVec4k,
                                            bool enable_p2p);

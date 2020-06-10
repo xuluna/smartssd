@@ -391,6 +391,12 @@ void xflz4::compress_in_line_multiple_files(std::vector<char*>& inVec,
 
         if (enable_p2p) {
             auto ssd_start = std::chrono::high_resolution_clock::now();
+
+            if(fallocate(fd_p2p_vec[i] , 0, 0, compressed_size)){
+                std::cout << "NVMe fallocate failed: error: " << std::strerror(errno)  << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            
             ret = write(fd_p2p_vec[i], bufp2pOutVec[i], compressed_size);
             if (ret == -1)
                 std::cout << "P2P: write() failed with error: " << ret << ", line: " << __LINE__ << std::endl;

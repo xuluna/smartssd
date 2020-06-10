@@ -11,7 +11,7 @@ using namespace std;
 struct Options {
   string compress_xclbin;
   unsigned long block_size;
-  unsigned device_id;
+  unsigned num_memory;
   string filename;
   uint32_t memory_size;
 } g_options{};
@@ -25,9 +25,9 @@ int main(int argc, char *argv[]) {
   desc.add_options()("help,h", "Show help")(
       "compress_xclbin", po::value<std::string>()->required(),
       "Kernel compression bin xclbin file")(
-      "device_id", po::value<unsigned>()->default_value(0),
-      "Device id (e.g., 0)")("filename", po::value<string>()->required(),
-                             "Output file name in ssd")(
+      "num_memory", po::value<unsigned>()->default_value(1),
+      "Number of memory to compress")(
+      "filename", po::value<string>()->required(), "Output file name in ssd")(
       "memory_size", po::value<uint32_t>()->required(),
       "Memory size to compress (MB)")(
       "block_size", po::value<unsigned long>()->default_value(BLOCK_SIZE_IN_KB),
@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
 
   g_options.block_size = vm["block_size"].as<unsigned long>();
   g_options.compress_xclbin = vm["compress_xclbin"].as<string>();
-  g_options.device_id = vm["device_id"].as<unsigned>();
+  g_options.num_memory = vm["num_memory"].as<unsigned>();
   g_options.filename = vm["filename"].as<string>();
   g_options.memory_size = vm["memory_size"].as<uint32_t>() * (1 << 20);
 
@@ -53,18 +53,20 @@ int main(int argc, char *argv[]) {
   vector<string> outVec;
   vector<uint32_t> inSizeVec;
 
-  outVec.push_back(g_options.filename);
+  for (unsigned i = 0; i < g_options.num_memory; i++) {
+    outVec.push_back(g_options.filename + "." + to_string(i));
 
-  char *memory =
-      static_cast<char *>(aligned_alloc(4096, g_options.memory_size));
-  memset(memory, 56, g_options.memory_size);
-  inVec.push_back(memory);
-  inSizeVec.push_back(g_options.memory_size);
+    char *memory =
+        static_cast<char *>(aligned_alloc(4096, g_options.memory_size));
+    memset(memory, rand() % 256, g_options.memory_size);
+    inVec.push_back(memory);
+    inSizeVec.push_back(g_options.memory_size);
+  }
+
   std::cout << "\x1B[32m[OpenCL Setup]\033[0m OpenCL/Host/Device Buffer Setup "
                "Started ..."
             << std::endl;
-  xflz4 xlz(g_options.compress_xclbin, g_options.device_id,
-            g_options.block_size);
+  xflz4 xlz(g_options.compress_xclbin, 0, g_options.block_size);
   std::cout << "\x1B[32m[OpenCL Setup]\033[0m OpenCL/Host/Device Buffer Setup "
                "Done ..."
             << std::endl;
