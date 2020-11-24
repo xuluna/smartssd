@@ -16,7 +16,7 @@
 #include <iostream>
 #include <cassert>
 #include <vector>
-#include "lz4_p2p.hpp"
+#include "../../kernel/include/lz4_p2p.hpp"
 #include "lz4_p2p_dec.hpp"
 #include <cstdio>
 #include <fstream>
@@ -44,14 +44,11 @@ std::vector<unsigned char> readBinary(const std::string& fileName) {
 }
 
 // Constructor
-xfLz4::xfLz4(const std::string& binaryFile, uint8_t device_id) {
-//xfLz4::xfLz4(const std::string& binaryFile) {
+xfLz4::xfLz4(const std::string& binaryFile) {
     int err;
     cl_int error;
-    cl_uint num_devices;
-    // m_device = 0;
+    m_device = 0;
     cl_platform_id platform;
-    cl_uint platforms;//, devices;
     cl_uint num_platforms;
     err = clGetPlatformIDs(0, NULL, &num_platforms);
     cl_platform_id* platform_ids = (cl_platform_id*)malloc(sizeof(cl_platform_id) * num_platforms);
@@ -87,38 +84,7 @@ xfLz4::xfLz4(const std::string& binaryFile, uint8_t device_id) {
         free(platform_name);
     }
 
-    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
-
-    if (err != CL_SUCCESS) {
-        printf("Error: could not get number of devices \n");
-        exit(EXIT_FAILURE);
-    }
-//cl_device_id *devices;
-    devices = (cl_device_id*) malloc(sizeof(cl_device_id) * num_devices);
-
-    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, num_devices, devices, NULL);
-    if (err != CL_SUCCESS) {
-        printf("Error: could not get list of devices\n");
-        exit(EXIT_FAILURE);
-    }
-
-
-    
-    if (num_devices <= device_id) {
-        std::cout << "Identfied devices = " << unsigned(num_devices) << ", given device id = " << unsigned(device_id)
-                  << std::endl;
-        std::cout << "Error: Device ID should be within the range of number of Devices identified" << std::endl;
-        std::cout << "Program exited..\n" << std::endl;
-        exit(1);
-    }
-    else{
-        std::cout << " Number of available devices = " << num_devices << "\tCurrent device ID = " << unsigned(device_id) << std::endl;
-    }
-
-    m_device = devices[device_id];
-
-
-
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 1, &m_device, NULL);
     cl_context_properties properties[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0};
 
     m_context = clCreateContext(properties, 1, &m_device, NULL, NULL, &err);
@@ -139,13 +105,11 @@ xfLz4::~xfLz4() {
     clReleaseCommandQueue(ooo_q);
     clReleaseContext(m_context);
     clReleaseProgram(m_program);
-    free(devices);
 }
 
 void xfLz4::decompress_in_line_multiple_files(const std::vector<std::string>& inFileVec,
                                               std::vector<int>& fd_p2p_vec,
                                               std::vector<char*>& outVec,
-                                              std::vector<uint32_t> blkSizeVec,
                                               std::vector<uint64_t>& orgSizeVec,
                                               std::vector<uint64_t>& inSizeVec,
                                               bool enable_p2p) {
@@ -163,52 +127,33 @@ void xfLz4::decompress_in_line_multiple_files(const std::vector<std::string>& in
     uint64_t total_in_size = 0;
     std::chrono::duration<double, std::nano> total_ssd_time_ns(0);
 
-    int ret = 0, err;
+    int ret = 0;
     cl_int error;
 
     cl_mem buffer_input, buffer_chunk_info;
-    //uint32_t fid = 0;
     for (uint32_t fid = 0; fid < inFileVec.size(); fid++) {
-        uint64_t debytes;
         uint64_t original_size = 0;
-        uint32_t m_BlockSizeInKb;
-
-        switch(blkSizeVec[fid]){
-            case BSIZE_STD_64KB: m_BlockSizeInKb = 64; break;
-            case BSIZE_STD_256KB: m_BlockSizeInKb = 256; break;
-            case BSIZE_STD_1024KB: m_BlockSizeInKb = 1024; break;
-            case BSIZE_STD_4096KB: m_BlockSizeInKb = 4096; break;
-            default:
-                std::cout << "The coded block size is not supported" << std::endl;
-                EXIT_FAILURE;
-        }
-
-        //uint32_t m_BlockSizeInKb = 256;
-        uint32_t block_size_in_bytes = m_BlockSizeInKb * 1024;
+        uint32_t block_size_in_bytes = BLOCK_SIZE_IN_KB * 1024;
+        uint32_t m_BlockSizeInKb = BLOCK_SIZE_IN_KB;
         original_size = orgSizeVec[fid];
         total_size += original_size;
 
         uint32_t num_blocks = (original_size - 1) / block_size_in_bytes + 1;
-        uint64_t inIdx = 0;
         uint8_t total_no_cu = 1;
         uint8_t first_chunk = 1;
         std::string up_kname = unpacker_kernel_names[0];
         std::string dec_kname = decompress_kernel_names[0];
 
-        cl_mem_ext_ptr_t p2pBoExt = {XCL_MEM_EXT_P2P_BUFFER, NULL, 0};
+        cl_mem_ext_ptr_t p2pBoExt = {0};
         cl_mem_ext_ptr_t hostBoExt = {0};
         cl_mem_ext_ptr_t hostOutBoExt = {0};
 
+        if (enable_p2p) p2pBoExt = {XCL_MEM_EXT_P2P_BUFFER, NULL, 0};
+
         if ((fid % 2) == 0) {
-            p2pBoExt.flags |= XCL_MEM_DDR_BANK0;
-            hostBoExt.flags |= XCL_MEM_DDR_BANK0;
-            hostOutBoExt.flags |= XCL_MEM_DDR_BANK0;
             up_kname += ":{xilLz4Unpacker_1}";
             dec_kname += ":{xilLz4P2PDecompress_1}";
         } else {
-            p2pBoExt.flags |= XCL_MEM_DDR_BANK0;
-            hostBoExt.flags |= XCL_MEM_DDR_BANK0;
-            hostOutBoExt.flags |= XCL_MEM_DDR_BANK0;
             up_kname += ":{xilLz4Unpacker_2}";
             dec_kname += ":{xilLz4P2PDecompress_2}";
         }

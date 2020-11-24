@@ -23,10 +23,20 @@ COMMAND ${CMAKE_CXX_COMPILER} -t ${TARGET} --platform ${PLATFORM} -k xilLz4Packe
 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_custom_target(compress ALL 
-COMMAND ${CMAKE_CXX_COMPILER} -t ${TARGET} --platform ${PLATFORM} --config ${CMAKE_CURRENT_SOURCE_DIR}/compress.ini -o compress.xclbin -I${CMAKE_CURRENT_SOURCE_DIR}/include/ -l xf_compress.xo xf_packer.xo
+add_custom_target(xf_uncompress ALL
+COMMAND ${CMAKE_CXX_COMPILER} -t ${TARGET} --platform ${PLATFORM} -k xilLz4P2PDecompress -I${CMAKE_CURRENT_SOURCE_DIR}/include/ -o xf_uncompress.xo -c ${CMAKE_CURRENT_SOURCE_DIR}/src/lz4_p2p_decompress_kernel.cpp
 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-DEPENDS xf_compress xf_packer
+)
+
+add_custom_target(xf_unpacker ALL
+COMMAND ${CMAKE_CXX_COMPILER} -t ${TARGET} --platform ${PLATFORM} -k xilLz4Unpacker -I${CMAKE_CURRENT_SOURCE_DIR}/include/ -o xf_unpacker.xo -c ${CMAKE_CURRENT_SOURCE_DIR}/src/lz4_unpacker_kernel.cpp
+WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+add_custom_target(compress ALL 
+COMMAND ${CMAKE_CXX_COMPILER} -t ${TARGET} --platform ${PLATFORM} --config ${CMAKE_CURRENT_SOURCE_DIR}/compression.ini -o compression.xclbin -I${CMAKE_CURRENT_SOURCE_DIR}/include/ -l xf_compress.xo xf_packer.xo xf_uncompress.xo xf_unpacker.xo
+WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+DEPENDS xf_compress xf_packer xf_uncompress xf_unpacker
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/compress.xclbin DESTINATION bin)

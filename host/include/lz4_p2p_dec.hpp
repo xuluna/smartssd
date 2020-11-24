@@ -22,13 +22,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// Below are the codes as per LZ4 standard for
-// various maximum block sizes supported.
-#define BSIZE_STD_64KB 64
-#define BSIZE_STD_256KB 80
-#define BSIZE_STD_1024KB 96
-#define BSIZE_STD_4096KB 112
-
 // Maximum host buffer used to operate
 // per kernel invocation
 #define HOST_BUFFER_SIZE (2 * 1024 * 1024)
@@ -49,15 +42,13 @@
 
 class xfLz4 {
    public:
-    xfLz4(const std::string& binaryFile, uint8_t device_id);
-    //xfLz4(const std::string& binaryFile);
+    xfLz4(const std::string& binaryFile);
     void decompress_in_line_multiple_files(const std::vector<std::string>& inFileList,
-                                           std::vector<int>& fd_p2p_vec,
-                                           std::vector<char*>& outVec,
-                                           std::vector<uint32_t> blkSizeVec,
-                                           std::vector<uint64_t>& orgSizeVec,
-                                           std::vector<uint64_t>& inSizeVec4k,
-                                           bool enable_p2p);
+                                           std::vector<int>&               fd_p2p_vec,
+                                           std::vector<char*>&             outVec,
+                                           std::vector<uint64_t>&          orgSizeVec,
+                                           std::vector<uint64_t>&          inSizeVec4k,
+                                           bool                            enable_p2p);
     ~xfLz4();
     static uint64_t get_file_size(std::ifstream& file) {
         file.seekg(0, file.end);
@@ -71,11 +62,10 @@ class xfLz4 {
     cl_context m_context;
     cl_device_id m_device;
     cl_command_queue ooo_q;
-    cl_device_id *devices;
 
     std::vector<std::string> unpacker_kernel_names = {"xilLz4Unpacker"};
 
     std::vector<std::string> decompress_kernel_names = {"xilLz4P2PDecompress"};
 };
 
-#endif // _XFCOMPRESSION_LZ4_P2P_DEC_HPP_
+#endif  // _XFCOMPRESSION_LZ4_P2P_DEC_HPP_
